@@ -1,6 +1,8 @@
 import datetime as dt
 from typing import Optional
 
+FORMAT = '%d.%m.%Y'
+
 
 class Calculator:
     """Базовый класс для создания калькулятора,
@@ -32,17 +34,22 @@ class Calculator:
     def get_week_stats(self):
         """Метод для подсчета статистики за последнюю неделю."""
         week_stats = 0
-        today_date = dt.datetime.now().date()
+        today_date = dt.date.today()
 
         last_week_date = today_date - dt.timedelta(days=7)
 
         for record in self.records:
             date = record.date
 
-            if date > last_week_date and date <= today_date:
+            if last_week_date < date <= today_date:
                 week_stats += record.amount
 
         return week_stats
+
+    def get_balance(self):
+        """Метод для расчёта остатка."""
+        balance = self.limit - self.get_today_stats()
+        return balance
 
 
 class Record:
@@ -55,7 +62,7 @@ class Record:
         if date is None:
             self.date = dt.datetime.now().date()
         else:
-            self.date = dt.datetime.strptime(date, '%d.%m.%Y').date()
+            self.date = dt.datetime.strptime(date, FORMAT).date()
 
         self.comment = comment
 
@@ -65,45 +72,40 @@ class CaloriesCalculator(Calculator):
 
     def get_calories_remained(self):
         """Метод для расчета оставшихся для сегодня доступных калорий."""
-        calories_remained = self.limit - self.get_today_stats()
+        calories_remained = self.get_balance()
 
         if calories_remained > 0:
             return ('Сегодня можно съесть что-нибудь ещё, но с общей '
                     f'калорийностью не более {calories_remained} кКал')
-        else:
-            return 'Хватит есть!'
+
+        return 'Хватит есть!'
 
 
 class CashCalculator(Calculator):
     """Класс для создания калькулятора денег."""
 
+    RUB_RATE = 1.00
     USD_RATE = 70.21
     EURO_RATE = 90.34
 
     def get_today_cash_remained(self, currency):
         """Метод для расчета оставшихся для сегодня доступных денег."""
 
-        today_cash_remained = self.limit - self.get_today_stats()
+        currency_info = {'rub': (self.RUB_RATE, 'руб'),
+                         'usd': (self.USD_RATE, 'USD'),
+                         'eur': (self.EURO_RATE, 'Euro')}
 
-        if currency == 'rub':
-            currency_description = 'руб'
-            today_cash_remained_conv = round(abs(today_cash_remained), 2)
+        rate, title = currency_info[currency]
 
-        elif currency == 'usd':
-            currency_description = 'USD'
-            today_cash_remained_conv = round(abs(today_cash_remained)
-                                             / self.USD_RATE, 2)
-
-        elif currency == 'eur':
-            currency_description = 'Euro'
-            today_cash_remained_conv = round(abs(today_cash_remained)
-                                             / self.EURO_RATE, 2)
+        today_cash_remained = self.get_balance()
+        today_cash_remained_conv = round(abs(today_cash_remained)
+                                         / rate, 2)
 
         if today_cash_remained > 0:
             return ('На сегодня осталось '
-                    f'{today_cash_remained_conv:.2f} {currency_description}')
+                    f'{today_cash_remained_conv:.2f} {title}')
         elif today_cash_remained == 0:
             return 'Денег нет, держись'
-        else:
-            return ('Денег нет, держись: твой долг - '
-                    f'{today_cash_remained_conv:.2f} {currency_description}')
+
+        return ('Денег нет, держись: твой долг - '
+                f'{today_cash_remained_conv:.2f} {title}')
